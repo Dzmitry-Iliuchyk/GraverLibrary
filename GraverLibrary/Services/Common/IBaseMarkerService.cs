@@ -23,6 +23,7 @@ namespace GraverLibrary.Services.Common
         Action markingFinished { get; set; }
         Action HeightIsSet { get; set; }
         Action PowerModIsSet { get; set; }
+        bool IsGrafAvailableForMarking { get; set; }
         void SendCommand(string command);
         Task SendCommandAsync(string command);
         string GetMarkingTime();
@@ -30,6 +31,7 @@ namespace GraverLibrary.Services.Common
         Task<bool> TryConnectAsync(IPAddress iPAddress, int port);
         void Disconnect();
         Task<bool> SendFile(FileStream fileStreamToLeFile);
+        void CheckCurrentFile();
         string GetMainGroup();
         string GetFileName();
         string GetValue(string pathToProp);
@@ -45,5 +47,6 @@ namespace GraverLibrary.Services.Common
         string SetHeightToObject(int height);
         string SetPowerMode(Material material);
         string SetObjectHeight(float height);
+        string SetValueBeforeMarking(Order order);
     }
 }

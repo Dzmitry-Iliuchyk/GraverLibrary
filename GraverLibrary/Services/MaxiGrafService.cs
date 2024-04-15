@@ -19,8 +19,7 @@ namespace GraverLibrary.Services
     {
         private const string RESULT_SUCCESS = "0";
         private readonly float focusHeight_mm;
-        public bool isDetailReady = false;
-        public bool isGrafAvailableForMarking = false;
+        public bool IsGrafAvailableForMarking { get; set; }= false;
         private float oldHeight = 0;
 
         private NetworkStream networkStream;
@@ -47,32 +46,33 @@ namespace GraverLibrary.Services
             _markInfo = markInfo;
             focusHeight_mm = _graverConfig.FocusHeight;
             _logger = logger;
-
             markingFinished += OnMarkingFinished;
         }
 
         public async Task<bool> TryConnectAsync(IPAddress iPAddress, int port)
         {
-            client = new TcpClient();
-            while (!client.Connected)
-            {
-                try
+            
+                client = new TcpClient();
+                while (!client.Connected)
                 {
-                    _logger?.LogInformation(nameof(TryConnectAsync) + " connecting");
-                    await client.ConnectAsync(iPAddress, port);
-                    OnConnectToMaxiGraph();
+                    try
+                    {
+                        _logger?.LogInformation(nameof(TryConnectAsync) + " connecting");
+                        client.Connect(iPAddress, port);
+                        OnConnectToMaxiGraph();
+                    }
+                    catch (SocketException ex)
+                    {
+                        _logger?.LogError(nameof(TryConnectAsync) + ex.Message);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(nameof(TryConnectAsync) + ex.Message);
+                    }
                 }
-                catch (SocketException ex)
-                {
-                    _logger?.LogError(nameof(TryConnectAsync) + ex.Message);
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogError(nameof(TryConnectAsync) + ex.Message);
-                }
-            }
-            _logger?.LogInformation(nameof(TryConnectAsync) + " connected");
-            return client.Connected;
+                _logger?.LogInformation(nameof(TryConnectAsync) + " connected");
+                return client.Connected;
+            
         }
         private void OnConnectToMaxiGraph()
         {
@@ -98,8 +98,6 @@ namespace GraverLibrary.Services
             SendCommandWithoutPrefix(API_String_Keys.Api_Tcp_Prefix + _graverConfig.GetPrefix().Length);
             _logger?.LogInformation(nameof(OnConnectToMaxiGraph) + "\r\nPrefix: " + _graverConfig.GetPrefix());
 
-            //_markInfo.FileName = GetFileName();
-
             _markInfo.MarkingTime = GetMarkingTime();
             _markInfo.MainGroup = GetMainGroup();
             Connected?.Invoke();
@@ -107,6 +105,7 @@ namespace GraverLibrary.Services
 
         public void SendCommandWithoutPrefix(string command)
         {
+
             _logger?.LogInformation(nameof(SendCommandWithoutPrefix) + " \r\n Sent command:" + command);
             streamWriter.WriteLine(command);
             streamWriter.Flush();
@@ -174,6 +173,11 @@ namespace GraverLibrary.Services
             await streamWriter.WriteLineAsync(((MaxiGrafConfig)_graverConfig).GetPrefix() + command);
             await streamWriter.FlushAsync();
         }
+        public void CheckCurrentFile()
+        {
+            _markInfo.MarkingTime = GetMarkingTime();
+            _markInfo.MainGroup = GetMainGroup();
+        }
 
         public async Task<bool> SendFile(FileStream fileStreamToLeFile)
         {
@@ -219,7 +223,7 @@ namespace GraverLibrary.Services
             await streamWriter.WriteLineAsync(_graverConfig.GetPrefix() + command);
             await streamWriter.FlushAsync();
             reader.Close();
-            await Task.Delay(200);
+            await Task.Delay(packageDelay);
 
             //Считываем ответ
             var response = streamReader.ReadLineCustom();
@@ -297,7 +301,7 @@ namespace GraverLibrary.Services
         {
             _logger?.LogInformation(nameof(StopMarking));
             SendCommand(API_String_Keys.Stop);
-            isGrafAvailableForMarking = true;
+            IsGrafAvailableForMarking = true;
             markingStopped?.Invoke();
         }
         public string SendCommandAndReceiveAnswer(string command)
@@ -313,13 +317,13 @@ namespace GraverLibrary.Services
 
         public string StartMarkOnce()
         {
+            IsGrafAvailableForMarking = false;
             markingStarted?.Invoke();
             _logger?.LogInformation(nameof(StartMarkOnce));
-            if (!isGrafAvailableForMarking)
+            if (!IsGrafAvailableForMarking)
             {
                 return "Minimarker is not ready";
             }
-            isGrafAvailableForMarking = false;
             string command = "Start mark";
 
             var MarkingResult = SendCommandAndReceiveAnswer(command);
@@ -349,7 +353,21 @@ namespace GraverLibrary.Services
         private void OnMarkingFinished()
         {
             _logger?.LogInformation(nameof(OnMarkingFinished));
-            isGrafAvailableForMarking = true;
+            IsGrafAvailableForMarking = true;
+        }
+
+        public string SetValueBeforeMarking(Order order)
+        {
+            _logger?.LogInformation(nameof(SetPowerMode));
+            var barCode = SetValue($"{_markInfo.MainGroup}\\barcode.Power", order.BarCodeValue);
+           
+            if (barCode == RESULT_SUCCESS)
+            {
+                order.IsMarked = true;
+                return $"{barCode}";
+                    
+            }
+            return "Error";
         }
     }
 }

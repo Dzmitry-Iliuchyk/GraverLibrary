@@ -29,6 +29,7 @@ namespace GraverLibrary.Services
         public Action PowerModIsSet { get; set; }
         public Action markingStarted { get ; set; }
         public Action markingStopped { get ; set ; }
+        public bool IsGrafAvailableForMarking { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
         public void Disconnect()
         {
@@ -103,9 +104,12 @@ namespace GraverLibrary.Services
 
         public void SendCommandWithoutPrefix(string command)
         {
-            _logger?.LogInformation(nameof(Disconnect)  + " Mock");
+            _logger?.LogInformation(nameof(SendCommandWithoutPrefix)  + " Mock");
         }
-
+        public void CheckCurrentFile()
+        {
+            _logger?.LogInformation(nameof(CheckCurrentFile) + " Mock");
+        }
         public async Task<bool> SendFile(FileStream fileStreamToLeFile)
         {
             _logger?.LogInformation(nameof(SendFile)  + " Mock");
@@ -174,6 +178,12 @@ namespace GraverLibrary.Services
             _logger?.LogInformation(nameof(TryConnectAsync)  + " Mock");
             Connected?.Invoke();
             return Task.FromResult(true);
+        }
+
+        public string SetValueBeforeMarking(Order order)
+        {
+            _logger?.LogInformation(nameof(SetValueBeforeMarking) + " Mock");
+            return "ok";
         }
     }
 }
